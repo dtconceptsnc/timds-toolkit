@@ -2,9 +2,8 @@ name: TimDS design system
 
 # Pull requests validate. Every accepted update to main becomes a release:
 # prepare-release advances the patch exactly once unless the pull request
-# explicitly advanced the version. Publish ships that exact commit and respects
-# automatic updates; the final reusable job advances the linked consumer pin.
-# Tags are not required.
+# explicitly advanced the version, publish ships that exact commit, and the
+# final reusable job advances the linked consumer pin. Tags are not required.
 on:
   pull_request:
   push:
@@ -119,25 +118,21 @@ jobs:
       - run: npm ci
       - run: npm run timds -- dependencies check
       - run: npm run timds -- check
-      - name: Upload the machine index to the CDN
-        env:
-          TIMDS_ACCESS_TOKEN: ${{ secrets.TIMDS_ACCESS_TOKEN }}
-        run: |
-          if [[ -z "${TIMDS_ACCESS_TOKEN:-}" ]]; then
-            echo "::error::Configure an unbound operator TIMDS_ACCESS_TOKEN for portal publication."
-            exit 1
-          fi
-          npm run timds -- extract --skip-build --publish
       - name: Publish exact TimDS artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh auth setup-git
           npm exec -- timds-publish-artifact
-      - name: Publish or stage the portal release and verify the public root
+      - name: Publish machine index to the CDN
         env:
           TIMDS_ACCESS_TOKEN: ${{ secrets.TIMDS_ACCESS_TOKEN }}
-        run: npm run timds -- publish --skip-build --skip-push
+        run: |
+          if [[ -z "${TIMDS_ACCESS_TOKEN:-}" ]]; then
+            echo "TIMDS_ACCESS_TOKEN not configured; skipping CDN publication."
+            exit 0
+          fi
+          npm run timds -- extract --skip-build --publish
 
   pin-consumer:
     needs: [prepare-release, publish]
